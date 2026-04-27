@@ -7,8 +7,8 @@ interface ProgressBarProps {
   showPercentage?: boolean;
   size?: 'sm' | 'md' | 'lg';
   variant?: 'default' | 'success' | 'warning' | 'danger';
-  animated?: boolean;
   className?: string;
+  animate?: boolean;
 }
 
 const sizeClasses: Record<NonNullable<ProgressBarProps['size']>, string> = {
@@ -20,14 +20,14 @@ const sizeClasses: Record<NonNullable<ProgressBarProps['size']>, string> = {
 const variantClasses: Record<NonNullable<ProgressBarProps['variant']>, string> = {
   default: 'bg-blue-600',
   success: 'bg-green-500',
-  warning: 'bg-yellow-400',
+  warning: 'bg-yellow-500',
   danger: 'bg-red-500',
 };
 
-function getAutoVariant(percentage: number): NonNullable<ProgressBarProps['variant']> {
-  if (percentage >= 100) return 'success';
-  if (percentage >= 60) return 'default';
-  if (percentage >= 30) return 'warning';
+function resolveVariantFromValue(value: number): NonNullable<ProgressBarProps['variant']> {
+  if (value >= 100) return 'success';
+  if (value >= 60) return 'default';
+  if (value >= 30) return 'warning';
   return 'danger';
 }
 
@@ -35,39 +35,30 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
   value,
   max = 100,
   label,
-  showPercentage = true,
+  showPercentage = false,
   size = 'md',
   variant,
-  animated = false,
   className = '',
+  animate = true,
 }) => {
-  const clampedValue = Math.min(Math.max(0, value), max);
+  const clampedValue = Math.min(Math.max(value, 0), max);
   const percentage = max > 0 ? Math.round((clampedValue / max) * 100) : 0;
-  const resolvedVariant = variant ?? getAutoVariant(percentage);
+
+  const resolvedVariant = variant ?? resolveVariantFromValue(percentage);
   const fillClass = variantClasses[resolvedVariant];
-  const heightClass = sizeClasses[size];
+  const barHeightClass = sizeClasses[size];
 
   return (
-    <div className={`w-full ${className}`}>
+    <div className={`w-full ${className}`} role="region" aria-label={label ?? 'Progress'}>
       {(label || showPercentage) && (
-        <div className="flex items-center justify-between mb-1.5">
+        <div className="flex items-center justify-between mb-1">
           {label && (
             <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
               {label}
             </span>
           )}
           {showPercentage && (
-            <span
-              className={`text-sm font-semibold tabular-nums ${
-                resolvedVariant === 'success'
-                  ? 'text-green-600 dark:text-green-400'
-                  : resolvedVariant === 'warning'
-                  ? 'text-yellow-600 dark:text-yellow-400'
-                  : resolvedVariant === 'danger'
-                  ? 'text-red-600 dark:text-red-400'
-                  : 'text-blue-600 dark:text-blue-400'
-              } ${!label ? 'ml-auto' : ''}`}
-            >
+            <span className="text-sm font-semibold text-gray-600 dark:text-gray-400 ml-auto">
               {percentage}%
             </span>
           )}
@@ -75,17 +66,20 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
       )}
 
       <div
+        className={`w-full ${barHeightClass} bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden`}
         role="progressbar"
         aria-valuenow={clampedValue}
         aria-valuemin={0}
         aria-valuemax={max}
-        aria-label={label ?? `Progress: ${percentage}%`}
-        className={`w-full ${heightClass} bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden`}
+        aria-label={label}
       >
         <div
-          className={`${heightClass} ${fillClass} rounded-full transition-all duration-500 ease-out ${
-            animated ? 'animate-pulse' : ''
-          }`}
+          className={`
+            ${barHeightClass}
+            ${fillClass}
+            rounded-full
+            ${animate ? 'transition-all duration-500 ease-in-out' : ''}
+          `}
           style={{ width: `${percentage}%` }}
         />
       </div>
