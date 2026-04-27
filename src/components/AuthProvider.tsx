@@ -8,22 +8,29 @@ const PUBLIC_ROUTES = [
   '/',
   '/sign-in',
   '/sign-up',
-  '/sign-in/sso-callback',
-  '/sign-up/sso-callback',
+  '/sign-in/(.*)',
+  '/sign-up/(.*)',
 ];
 
-interface AuthProviderProps {
+function isPublicRoute(pathname: string): boolean {
+  return PUBLIC_ROUTES.some((route) => {
+    if (route.includes('(.*)')) {
+      const base = route.replace('/(.*)', '');
+      return pathname === base || pathname.startsWith(`${base}/`);
+    }
+    return pathname === route;
+  });
+}
+
+interface RouteGuardProps {
   children: React.ReactNode;
 }
 
-function RouteGuard({ children }: { children: React.ReactNode }) {
+function RouteGuard({ children }: RouteGuardProps): React.ReactElement {
   const pathname = usePathname();
+  const isPublic = isPublicRoute(pathname ?? '/');
 
-  const isPublicRoute = PUBLIC_ROUTES.some(
-    (route) => pathname === route || pathname.startsWith(route + '/')
-  );
-
-  if (isPublicRoute) {
+  if (isPublic) {
     return <>{children}</>;
   }
 
@@ -31,42 +38,47 @@ function RouteGuard({ children }: { children: React.ReactNode }) {
     <>
       <SignedIn>{children}</SignedIn>
       <SignedOut>
-        <RedirectToSignIn redirectUrl={pathname} />
+        <RedirectToSignIn redirectUrl={pathname ?? '/'} />
       </SignedOut>
     </>
   );
 }
 
-export function AuthProvider({ children }: AuthProviderProps) {
+interface AuthProviderProps {
+  children: React.ReactNode;
+}
+
+export function AuthProvider({ children }: AuthProviderProps): React.ReactElement {
   return (
     <ClerkProvider
       appearance={{
         variables: {
           colorPrimary: '#2563eb',
           colorBackground: '#ffffff',
-          colorText: '#111827',
-          colorInputBackground: '#f9fafb',
-          colorInputText: '#111827',
+          colorText: '#1e293b',
+          colorInputBackground: '#f8fafc',
+          colorInputText: '#1e293b',
           borderRadius: '0.5rem',
         },
         elements: {
           formButtonPrimary:
-            'bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors',
-          card: 'shadow-lg border border-gray-200 rounded-xl',
-          headerTitle: 'text-2xl font-bold text-gray-900',
-          headerSubtitle: 'text-gray-500',
+            'bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors',
+          card: 'shadow-lg border border-slate-200',
+          headerTitle: 'text-slate-900 font-semibold',
+          headerSubtitle: 'text-slate-600',
           socialButtonsBlockButton:
-            'border border-gray-300 hover:bg-gray-50 transition-colors rounded-lg',
+            'border border-slate-200 hover:bg-slate-50 transition-colors',
+          formFieldLabel: 'text-slate-700 font-medium',
           formFieldInput:
-            'border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
+            'border-slate-300 focus:border-blue-500 focus:ring-blue-500',
           footerActionLink: 'text-blue-600 hover:text-blue-700 font-medium',
+          identityPreviewEditButton: 'text-blue-600 hover:text-blue-700',
+          userButtonAvatarBox: 'w-8 h-8',
+          userButtonPopoverCard: 'shadow-lg border border-slate-200',
+          userButtonPopoverActionButton:
+            'hover:bg-slate-50 text-slate-700 transition-colors',
         },
       }}
-      publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
-      signInUrl="/sign-in"
-      signUpUrl="/sign-up"
-      afterSignInUrl="/dashboard"
-      afterSignUpUrl="/dashboard"
     >
       <RouteGuard>{children}</RouteGuard>
     </ClerkProvider>
