@@ -800,4 +800,16 @@ describe('Expense Routes', () => {
       mockReadJsonFile.mockResolvedValue(juneExpenses);
 
       const response = await request(app)
-        .get('/summary?month=2025
+        .get('/summary?month=2025-08')
+        .set('Authorization', `Bearer ${validToken}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data.totals[Category.Food]).toBe(0);
+      expect(response.body.data.totals[Category.Transport]).toBe(0);
+      expect(response.body.data.totals[Category.Entertainment]).toBe(0);
+      expect(response.body.data.totals[Category.Bills]).toBe(0);
+      expect(response.body.data.grandTotal).toBe(0);
+    });
+  });
+});
