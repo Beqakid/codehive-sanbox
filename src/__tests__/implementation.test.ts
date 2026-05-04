@@ -15,6 +15,7 @@ import { Category, Expense, CreateExpenseInput, UpdateExpenseInput } from '../mo
 import { User } from '../models/user';
 import { readJsonFile, writeJsonFile } from '../utils/fileStorage';
 import { validateExpenseInput, validateLoginInput } from '../utils/validation';
+import { authenticateToken } from '../middleware/auth';
 
 jest.mock('../utils/fileStorage');
 jest.mock('../utils/validation');
@@ -275,13 +276,11 @@ describe('Auth Middleware', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    jest.resetModules();
     app = express();
     app.use(express.json());
   });
 
   it('should allow access with valid JWT token', async () => {
-    const { authenticateToken } = await import('../middleware/auth');
     app.get('/protected', authenticateToken, (req, res) => {
       res.json({ success: true, data: 'protected resource' });
     });
@@ -296,7 +295,6 @@ describe('Auth Middleware', () => {
   });
 
   it('should reject request with no token', async () => {
-    const { authenticateToken } = await import('../middleware/auth');
     app.get('/protected', authenticateToken, (req, res) => {
       res.json({ success: true, data: 'protected resource' });
     });
@@ -308,7 +306,6 @@ describe('Auth Middleware', () => {
   });
 
   it('should reject request with invalid token', async () => {
-    const { authenticateToken } = await import('../middleware/auth');
     app.get('/protected', authenticateToken, (req, res) => {
       res.json({ success: true, data: 'protected resource' });
     });
@@ -322,7 +319,6 @@ describe('Auth Middleware', () => {
   });
 
   it('should reject request with expired token', async () => {
-    const { authenticateToken } = await import('../middleware/auth');
     app.get('/protected', authenticateToken, (req, res) => {
       res.json({ success: true, data: 'protected resource' });
     });
@@ -337,7 +333,6 @@ describe('Auth Middleware', () => {
   });
 
   it('should reject request with malformed Authorization header', async () => {
-    const { authenticateToken } = await import('../middleware/auth');
     app.get('/protected', authenticateToken, (req, res) => {
       res.json({ success: true, data: 'protected resource' });
     });
@@ -353,13 +348,18 @@ describe('Auth Middleware', () => {
 
 describe('Auth Routes', () => {
   let app: express.Application;
+  // Import auth router once at module level to share mock references
+  let authRouter: express.Router;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
+    const mod = await import('../routes/auth');
+    authRouter = mod.default;
+  });
+
+  beforeEach(() => {
     jest.clearAllMocks();
     app = express();
     app.use(express.json());
-
-    const authRouter = (await import('../routes/auth')).default;
     app.use('/', authRouter);
   });
 
@@ -441,6 +441,7 @@ describe('Auth Routes', () => {
 describe('Expense Routes', () => {
   let app: express.Application;
   let validToken: string;
+  let expensesRouter: express.Router;
 
   const sampleExpense: Expense = {
     id: 'test-uuid-1234',
@@ -461,13 +462,15 @@ describe('Expense Routes', () => {
     },
   ];
 
-  beforeEach(async () => {
+  beforeAll(async () => {
+    const mod = await import('../routes/expenses');
+    expensesRouter = mod.default;
+  });
+
+  beforeEach(() => {
     jest.clearAllMocks();
     app = express();
     app.use(express.json());
-
-    const { authenticateToken } = await import('../middleware/auth');
-    const expensesRouter = (await import('../routes/expenses')).default;
     app.use('/', authenticateToken, expensesRouter);
 
     validToken = jwt.sign({ username: 'admin' }, JWT_SECRET, { expiresIn: '7d' });
