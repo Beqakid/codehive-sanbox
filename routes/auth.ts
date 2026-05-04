@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import { readData } from '../utils/fileStorage';
+import { readJsonFile } from '../utils/fileStorage';
 import { validateLoginInput } from '../utils/validation';
 import { User } from '../models/user';
 
@@ -10,15 +10,15 @@ const router = Router();
 router.post('/login', async (req: Request, res: Response): Promise<void> => {
   const { username, password } = req.body;
 
-  const validationError = validateLoginInput({ username, password });
-  if (validationError) {
-    res.status(400).json({ success: false, error: validationError });
+  const validationResult = validateLoginInput({ username, password });
+  if (!validationResult.valid) {
+    res.status(400).json({ success: false, error: validationResult.errors.join(', ') });
     return;
   }
 
   let user: User;
   try {
-    user = await readData<User>('user.json');
+    user = await readJsonFile<User>('data/user.json');
   } catch (err) {
     res.status(500).json({ success: false, error: 'Failed to read user data.' });
     return;

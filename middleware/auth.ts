@@ -39,25 +39,10 @@ export function authenticateToken(
     req.user = { username: decoded.username };
     next();
   } catch (err) {
-    if (err instanceof jwt.TokenExpiredError) {
-      res.status(401).json({
-        success: false,
-        error: 'Token has expired.',
-      });
-      return;
-    }
-
-    if (err instanceof jwt.JsonWebTokenError) {
-      res.status(401).json({
-        success: false,
-        error: 'Invalid token.',
-      });
-      return;
-    }
-
-    res.status(500).json({
+    // Return 403 for any token verification failure (expired, invalid, malformed)
+    res.status(403).json({
       success: false,
-      error: 'Failed to authenticate token.',
+      error: 'Invalid or expired token.',
     });
   }
 }

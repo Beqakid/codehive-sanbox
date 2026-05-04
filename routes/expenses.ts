@@ -1,23 +1,33 @@
 import { Router, Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { Expense, Category, CreateExpenseInput, UpdateExpenseInput } from '../models/expense';
-import { readData, writeData } from '../utils/fileStorage';
-import { validateCreateExpense, validateUpdateExpense } from '../utils/validation';
+import { readJsonFile, writeJsonFile } from '../utils/fileStorage';
+import { validateExpenseInput } from '../utils/validation';
 
 const router = Router();
 const EXPENSES_FILE = 'data/expenses.json';
 
-router.post('/', async (req: Request, res: Response): Promise<void> => {
+// Helper to read expenses safely (returns [] if file not found)
+async function readExpenses(): Promise<Expense[]> {
+  try {
+    return await readJsonFile<Expense[]>(EXPENSES_FILE);
+  } catch {
+    return [];
+  }
+}
+
+// POST /expenses — Create a new expense
+router.post('/expenses', async (req: Request, res: Response): Promise<void> => {
   try {
     const input: CreateExpenseInput = req.body;
-    const errors = validateCreateExpense(input);
+    const validation = validateExpenseInput(input);
 
-    if (errors.length > 0) {
-      res.status(400).json({ success: false, error: errors.join(', ') });
+    if (!validation.valid) {
+      res.status(400).json({ success: false, error: validation.errors.join(', ') });
       return;
     }
 
-    const expenses = await readData<Expense[]>(EXPENSES_FILE);
+    const expenses = await readExpenses();
 
     const newExpense: Expense = {
       id: uuidv4(),
@@ -28,7 +38,7 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
     };
 
     expenses.push(newExpense);
-    await writeData<Expense[]>(EXPENSES_FILE, expenses);
+    await writeJsonFile<Expense[]>(EXPENSES_FILE, expenses);
 
     res.status(201).json({ success: true, data: newExpense });
   } catch (err) {
@@ -36,27 +46,29 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
   }
 });
 
-router.get('/', async (req: Request, res: Response): Promise<void> => {
+// GET /expenses — List all expenses
+router.get('/expenses', async (req: Request, res: Response): Promise<void> => {
   try {
-    const expenses = await readData<Expense[]>(EXPENSES_FILE);
+    const expenses = await readExpenses();
     res.status(200).json({ success: true, data: expenses });
   } catch (err) {
     res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });
 
-router.put('/:id', async (req: Request, res: Response): Promise<void> => {
+// PUT /expenses/:id — Update an expense
+router.put('/expenses/:id', async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const input: UpdateExpenseInput = req.body;
 
-    const errors = validateUpdateExpense(input);
-    if (errors.length > 0) {
-      res.status(400).json({ success: false, error: errors.join(', ') });
+    const validation = validateExpenseInput(input);
+    if (!validation.valid) {
+      res.status(400).json({ success: false, error: validation.errors.join(', ') });
       return;
     }
 
-    const expenses = await readData<Expense[]>(EXPENSES_FILE);
+    const expenses = await readExpenses();
     const index = expenses.findIndex((e) => e.id === id);
 
     if (index === -1) {
@@ -65,7 +77,6 @@ router.put('/:id', async (req: Request, res: Response): Promise<void> => {
     }
 
     const existing = expenses[index];
-
     const updated: Expense = {
       ...existing,
       ...(input.amount !== undefined && { amount: Number(input.amount) }),
@@ -75,7 +86,7 @@ router.put('/:id', async (req: Request, res: Response): Promise<void> => {
     };
 
     expenses[index] = updated;
-    await writeData<Expense[]>(EXPENSES_FILE, expenses);
+    await writeJsonFile<Expense[]>(EXPENSES_FILE, expenses);
 
     res.status(200).json({ success: true, data: updated });
   } catch (err) {
@@ -83,10 +94,11 @@ router.put('/:id', async (req: Request, res: Response): Promise<void> => {
   }
 });
 
-router.delete('/:id', async (req: Request, res: Response): Promise<void> => {
+// DELETE /expenses/:id — Delete an expense
+router.delete('/expenses/:id', async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const expenses = await readData<Expense[]>(EXPENSES_FILE);
+    const expenses = await readExpenses();
     const index = expenses.findIndex((e) => e.id === id);
 
     if (index === -1) {
@@ -94,15 +106,17 @@ router.delete('/:id', async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
+    const deleted = expenses[index];
     const remaining = expenses.filter((e) => e.id !== id);
-    await writeData<Expense[]>(EXPENSES_FILE, remaining);
+    await writeJsonFile<Expense[]>(EXPENSES_FILE, remaining);
 
-    res.status(200).json({ success: true, data: { id } });
+    res.status(200).json({ success: true, data: { id: deleted.id } });
   } catch (err) {
     res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });
 
+// GET /summary — Monthly expense summary
 router.get('/summary', async (req: Request, res: Response): Promise<void> => {
   try {
     const { month } = req.query;
@@ -121,12 +135,8 @@ router.get('/summary', async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const expenses = await readData<Expense[]>(EXPENSES_FILE);
-
-    const filtered = expenses.filter((e) => {
-      const expenseMonth = e.date.substring(0, 7);
-      return expenseMonth === month;
-    });
+    const expenses = await readExpenses();
+    const filtered = expenses.filter((e) => e.date.substring(0, 7) === month);
 
     const totals: Record<Category, number> = {
       [Category.Food]: 0,
@@ -141,19 +151,11 @@ router.get('/summary', async (req: Request, res: Response): Promise<void> => {
       }
     }
 
-    const grandTotal =
-      Math.round(
-        Object.values(totals).reduce((sum, val) => sum + val, 0) * 100
-      ) / 100;
+    const grandTotal = Math.round(
+      Object.values(totals).reduce((sum, val) => sum + val, 0) * 100
+    ) / 100;
 
-    res.status(200).json({
-      success: true,
-      data: {
-        month,
-        totals,
-        grandTotal,
-      },
-    });
+    res.status(200).json({ success: true, data: { month, totals, grandTotal } });
   } catch (err) {
     res.status(500).json({ success: false, error: 'Internal server error' });
   }
