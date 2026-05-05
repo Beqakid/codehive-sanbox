@@ -3,9 +3,9 @@ import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
 // Mock Web Crypto for JWT utils
-const mockSign = jest.fn();
-const mockVerify = jest.fn();
-const mockImportKey = jest.fn();
+const mockSign = jest.fn() as jest.Mock;
+const mockVerify = jest.fn() as jest.Mock;
+const mockImportKey = jest.fn() as jest.Mock;
 
 Object.defineProperty(globalThis, 'crypto', {
   value: {
@@ -96,7 +96,7 @@ async function signJwt(payload: JwtPayload, secret: string): Promise<string> {
 
   const signatureBuffer = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(signingInput));
   const signature = base64UrlEncode(
-    String.fromCharCode(...new Uint8Array(signatureBuffer)),
+    String.fromCharCode(...new Uint8Array(signatureBuffer as ArrayBuffer)),
   );
 
   return `${signingInput}.${signature}`;
@@ -583,14 +583,14 @@ describe('Cookie helpers', () => {
 // ─── Integration-style: register flow (mocked D1) ────────────────────────────
 
 describe('Register flow (unit, mocked dependencies)', () => {
-  const mockDb = {
-    prepare: jest.fn(),
+  const mockStatement = {
+    bind: jest.fn() as jest.Mock,
+    first: jest.fn() as jest.Mock,
+    run: jest.fn() as jest.Mock,
   };
 
-  const mockStatement = {
-    bind: jest.fn(),
-    first: jest.fn(),
-    run: jest.fn(),
+  const mockDb = {
+    prepare: jest.fn() as jest.Mock,
   };
 
   beforeEach(() => {
@@ -640,12 +640,12 @@ describe('Register flow (unit, mocked dependencies)', () => {
 
 describe('Login flow (unit, mocked dependencies)', () => {
   const mockStatement = {
-    bind: jest.fn(),
-    first: jest.fn(),
+    bind: jest.fn() as jest.Mock,
+    first: jest.fn() as jest.Mock,
   };
 
   const mockDb = {
-    prepare: jest.fn().mockReturnValue(mockStatement),
+    prepare: jest.fn() as jest.Mock,
   };
 
   beforeEach(() => {
