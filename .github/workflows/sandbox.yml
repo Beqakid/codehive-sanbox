@@ -7,7 +7,6 @@ on:
     branches: ['agent-plan/**']
 
 permissions:
-  contents: read
   pull-requests: write
   issues: write
 
