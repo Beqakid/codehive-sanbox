@@ -1,0 +1,65 @@
+version: '3.9'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bookmark_api
+    restart: unless-stopped
+    ports:
+      - '${PORT:-3000}:3000'
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 3000
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-bookmark_manager}
+      DB_USER: ${DB_USER:-bookmark_user}
+      DB_PASSWORD: ${DB_PASSWORD:-bookmark_secret}
+      JWT_SECRET: ${JWT_SECRET:-changeme_super_secret_jwt_key}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      BCRYPT_ROUNDS: ${BCRYPT_ROUNDS:-12}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - bookmark_network
+    volumes:
+      - api_logs:/app/logs
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: bookmark_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-bookmark_manager}
+      POSTGRES_USER: ${DB_USER:-bookmark_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-bookmark_secret}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - '${DB_EXPOSE_PORT:-5432}:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./src/db/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U ${DB_USER:-bookmark_user} -d ${DB_NAME:-bookmark_manager}
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - bookmark_network
+
+networks:
+  bookmark_network:
+    driver: bridge
+    name: bookmark_network
+
+volumes:
+  postgres_data:
+    name: bookmark_postgres_data
+  api_logs:
+    name: bookmark_api_logs
