@@ -6,6 +6,10 @@ on:
   push:
     branches: ['agent-plan/**']
 
+permissions:
+  pull-requests: write
+  contents: read
+
 jobs:
   sandbox:
     name: Run Tests
