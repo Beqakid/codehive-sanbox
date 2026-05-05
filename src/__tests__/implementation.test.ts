@@ -3,9 +3,9 @@ import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
 // Mock Web Crypto for JWT utils
-const mockSign = jest.fn() as jest.Mock;
-const mockVerify = jest.fn() as jest.Mock;
-const mockImportKey = jest.fn() as jest.Mock;
+const mockSign = jest.fn() as jest.Mock<any>;
+const mockVerify = jest.fn() as jest.Mock<any>;
+const mockImportKey = jest.fn() as jest.Mock<any>;
 
 Object.defineProperty(globalThis, 'crypto', {
   value: {
@@ -383,7 +383,7 @@ describe('AuthService helpers', () => {
 
   describe('hashPassword', () => {
     it('calls bcrypt.hash with cost factor 12', async () => {
-      (mockBcrypt.hash as jest.Mock).mockResolvedValue('hashed_pw');
+      (mockBcrypt.hash as jest.Mock<any>).mockResolvedValue('hashed_pw');
       const result = await hashPassword('mySecret!');
       expect(mockBcrypt.hash).toHaveBeenCalledWith('mySecret!', 12);
       expect(result).toBe('hashed_pw');
@@ -392,19 +392,19 @@ describe('AuthService helpers', () => {
 
   describe('comparePassword', () => {
     it('returns true when passwords match', async () => {
-      (mockBcrypt.compare as jest.Mock).mockResolvedValue(true);
+      (mockBcrypt.compare as jest.Mock<any>).mockResolvedValue(true);
       const result = await comparePassword('plain', 'hashed');
       expect(result).toBe(true);
     });
 
     it('returns false when passwords do not match', async () => {
-      (mockBcrypt.compare as jest.Mock).mockResolvedValue(false);
+      (mockBcrypt.compare as jest.Mock<any>).mockResolvedValue(false);
       const result = await comparePassword('wrong', 'hashed');
       expect(result).toBe(false);
     });
 
     it('passes plain and hashed to bcrypt.compare', async () => {
-      (mockBcrypt.compare as jest.Mock).mockResolvedValue(true);
+      (mockBcrypt.compare as jest.Mock<any>).mockResolvedValue(true);
       await comparePassword('plaintext', 'bcrypt_hash');
       expect(mockBcrypt.compare).toHaveBeenCalledWith('plaintext', 'bcrypt_hash');
     });
@@ -584,13 +584,13 @@ describe('Cookie helpers', () => {
 
 describe('Register flow (unit, mocked dependencies)', () => {
   const mockStatement = {
-    bind: jest.fn() as jest.Mock,
-    first: jest.fn() as jest.Mock,
-    run: jest.fn() as jest.Mock,
+    bind: jest.fn() as jest.Mock<any>,
+    first: jest.fn() as jest.Mock<any>,
+    run: jest.fn() as jest.Mock<any>,
   };
 
   const mockDb = {
-    prepare: jest.fn() as jest.Mock,
+    prepare: jest.fn() as jest.Mock<any>,
   };
 
   beforeEach(() => {
@@ -617,7 +617,7 @@ describe('Register flow (unit, mocked dependencies)', () => {
   });
 
   it('hashes the password before storage', async () => {
-    (mockBcrypt.hash as jest.Mock).mockResolvedValue('bcrypt_hash_result');
+    (mockBcrypt.hash as jest.Mock<any>).mockResolvedValue('bcrypt_hash_result');
     const hashed = await hashPassword('ValidPass1!');
     expect(hashed).toBe('bcrypt_hash_result');
     expect(mockBcrypt.hash).toHaveBeenCalledWith('ValidPass1!', 12);
@@ -640,12 +640,12 @@ describe('Register flow (unit, mocked dependencies)', () => {
 
 describe('Login flow (unit, mocked dependencies)', () => {
   const mockStatement = {
-    bind: jest.fn() as jest.Mock,
-    first: jest.fn() as jest.Mock,
+    bind: jest.fn() as jest.Mock<any>,
+    first: jest.fn() as jest.Mock<any>,
   };
 
   const mockDb = {
-    prepare: jest.fn() as jest.Mock,
+    prepare: jest.fn().mockReturnValue(mockStatement) as jest.Mock<any>,
   };
 
   beforeEach(() => {
@@ -661,13 +661,13 @@ describe('Login flow (unit, mocked dependencies)', () => {
   });
 
   it('returns false from comparePassword when password is wrong', async () => {
-    (mockBcrypt.compare as jest.Mock).mockResolvedValue(false);
+    (mockBcrypt.compare as jest.Mock<any>).mockResolvedValue(false);
     const match = await comparePassword('wrongpass', 'correcthash');
     expect(match).toBe(false);
   });
 
   it('returns true from comparePassword with the correct password', async () => {
-    (mockBcrypt.compare as jest.Mock).mockResolvedValue(true);
+    (mockBcrypt.compare as jest.Mock<any>).mockResolvedValue(true);
     const match = await comparePassword('correctpass', 'correcthash');
     expect(match).toBe(true);
   });
